@@ -149,7 +149,7 @@ def dataframeToTextFile (dataframe, dst_file, overwrite=False,
         .option('header', header)
         .option('delimiter', delimiter)
         .option('quoteMode', quoteMode)
-        .mode('overwrite')
+        .mode('overwrite')     # temp directory will always be overwritten
         .csv(dst_dir)
         )
 
@@ -160,6 +160,6 @@ def dataframeToTextFile (dataframe, dst_file, overwrite=False,
                                                                 # alphabetical order
         writeString(header_filename, header_record)
         
-    copyMerge(dst_dir, dst_file, overwrite=False, deleteSource=True)
+    copyMerge(dst_dir, dst_file, overwrite, deleteSource=True)
     
 
