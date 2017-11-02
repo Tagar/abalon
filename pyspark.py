@@ -26,7 +26,7 @@ def file_to_df (df_name, file_path, header=True, delimiter='|', inferSchema=True
     if cache:
         df = df.cache()
 
-    df.registerTempTable(df_name)
+    df.createOrReplaceTempView(df_name)
     globals()[df_name] = df
 
 
@@ -45,7 +45,7 @@ def sql_to_df (df_name, sql, cache=False):
     if cache:
         df = df.cache()
 
-    df.registerTempTable(df_name)
+    df.createOrReplaceTempView(df_name)
     globals()[df_name] = df
 
 ###########################################################################################################
