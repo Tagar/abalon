@@ -1,10 +1,31 @@
 
+
+###########################################################################################################
+
+spark = None
 debug = False
+
+def pyspark_init (i_spark, i_debug):
+    '''
+    Initialize module-level variables
+
+    :param i_spark: an object of pyspark.sql.session.SparkSession
+    :param i_debug: debug output of the below functions?
+    '''
+
+    from pyspark.sql.session import SparkSession
+    if not isinstance(spark, pyspark.sql.session.SparkSession):
+        raise TypeError("spark parameter should be of type SparkSession")
+
+    global spark, debug
+    (spark, debug) = (i_spark, i_debug)
+
 
 ###########################################################################################################
 
 
 def file_to_df (df_name, file_path, header=True, delimiter='|', inferSchema=True, cache=False):
+
     """
         Reads in a delimited file and sets up a Spark dataframe 
         
@@ -32,6 +53,7 @@ def file_to_df (df_name, file_path, header=True, delimiter='|', inferSchema=True
 
 
 def sql_to_df (df_name, sql, cache=False):
+
     """
         Runs an sql query and sets up a Spark dataframe 
         
@@ -50,6 +72,7 @@ def sql_to_df (df_name, sql, cache=False):
     globals()[df_name] = df
 
 ###########################################################################################################
+
 
 def copyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
     
@@ -87,10 +110,10 @@ def copyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
 
     try:
         # loop over files in alphabetical order and append them one by one to the target file
-        for file in files:
-            debug_print("Appending file {} into {}".format(file, dst_file))
+        for filename in files:
+            debug_print("Appending file {} into {}".format(filename, dst_file))
 
-            in_stream = fs.open(file)   # InputStream object
+            in_stream = fs.open(filename)   # InputStream object
             try:
                 hadoop.io.IOUtils.copyBytes(in_stream, out_stream, conf, False)     # False means don't close out_stream
             finally:
