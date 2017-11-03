@@ -21,22 +21,27 @@ def sparkutils_init (i_spark, i_debug=False):
     :param i_debug: debug output of the below functions?
     '''
 
-    from pyspark.sql.session import SparkSession
-    if not isinstance(spark, pyspark.sql.session.SparkSession):
-        raise TypeError("spark parameter should be of type SparkSession")
-
     global spark, debug
     (spark, debug) = (i_spark, i_debug)
+
+    from pyspark.sql.session import SparkSession
+    if not isinstance(spark, SparkSession):
+        raise TypeError("spark parameter should be of type SparkSession")
 
     global sc
     sc = spark.sparkContext
 
     global hadoop, conf, fs
+
     hadoop = sc._jvm.org.apache.hadoop      # Get a reference to org.apache.hadoop through py4j object
-    conf = hadoop.conf.Configuration()      # Create Configuration object
-                                            #   see - shttps://hadoop.apache.org/docs/r2.6.4/api/org/apache/hadoop/conf/Configuration.html
-    fs = hadoop.fs.FileSystem.get(conf)     # get FileSystem object
-                                            #   see - https://hadoop.apache.org/docs/stable/api/org/apache/hadoop/fs/FileSystem.html#get(org.apache.hadoop.conf.Configuration)
+
+    # Create Configuration object
+    # see - https://hadoop.apache.org/docs/r2.6.4/api/org/apache/hadoop/conf/Configuration.html
+    conf = hadoop.conf.Configuration()
+
+    # get FileSystem object
+    # see - https://hadoop.apache.org/docs/stable/api/org/apache/hadoop/fs/FileSystem.html#get(org.apache.hadoop.conf.Configuration)
+    fs = hadoop.fs.FileSystem.get(conf)
 
 
 ###########################################################################################################
