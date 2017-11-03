@@ -1,11 +1,19 @@
 
 
 ###########################################################################################################
+# module variables:
 
-spark = None
 debug = False
 
-def pyspark_init (i_spark, i_debug=False):
+(spark, sc) = (None, None)                  # SparkSession and SparkContext
+
+(hadoop, conf, fs) = (None, None, None)     # see desciption below in sparkutils_init()
+
+
+###########################################################################################################
+
+
+def sparkutils_init (i_spark, i_debug=False):
     '''
     Initialize module-level variables
 
@@ -19,6 +27,16 @@ def pyspark_init (i_spark, i_debug=False):
 
     global spark, debug
     (spark, debug) = (i_spark, i_debug)
+
+    global sc
+    sc = spark.sparkContext
+
+    global hadoop, conf, fs
+    hadoop = sc._jvm.org.apache.hadoop      # Get a reference to org.apache.hadoop through py4j object
+    conf = hadoop.conf.Configuration()      # Create Configuration object
+                                            #   see - shttps://hadoop.apache.org/docs/r2.6.4/api/org/apache/hadoop/conf/Configuration.html
+    fs = hadoop.fs.FileSystem.get(conf)     # get FileSystem object
+                                            #   see - https://hadoop.apache.org/docs/stable/api/org/apache/hadoop/fs/FileSystem.html#get(org.apache.hadoop.conf.Configuration)
 
 
 ###########################################################################################################
@@ -38,7 +56,7 @@ def file_to_df (df_name, file_path, header=True, delimiter='|', inferSchema=True
         :param cache: cache this dataframe?
     """
 
-    df = ( sqlc.read.format('csv')
+    df = ( spark.read.format('csv')
               .option('header', header)
               .option('delimiter', delimiter)
               .option('inferSchema', inferSchema)
@@ -63,7 +81,7 @@ def sql_to_df (df_name, sql, cache=False):
         :param cache: cache this dataframe?
     """
 
-    df = sqlc.sql(sql)
+    df = spark.sql(sql)
 
     if cache:
         df = df.cache()
@@ -74,7 +92,7 @@ def sql_to_df (df_name, sql, cache=False):
 ###########################################################################################################
 
 
-def copyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
+def HDFScopyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
     
     """
     copyMerge() merges files from an HDFS directory to an HDFS files. 
@@ -89,11 +107,7 @@ def copyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
     
     def debug_print (message):
         if debug:
-            print("copyMerge(): " + message)
-
-    hadoop = sc._jvm.org.apache.hadoop
-    conf = hadoop.conf.Configuration()
-    fs = hadoop.fs.FileSystem.get(conf)
+            print("HDFScopyMerge(): " + message)
 
     # check files that will be merged
     files = []
@@ -126,19 +140,16 @@ def copyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
         debug_print("Source directory {} removed.".format(src_dir))
 
 
-def writeString (dst_file, content, overwrite=True):
+def HDFSwriteString (dst_file, content, overwrite=True):
     
     """
-    Creates an HDFS file with given content
-        
+    Creates an HDFS file with given content.
+    Notice this is usable only for small (metadata like) files.
+
     :param dst_file: destination HDFS file to write to
     :param content: string to be written to the file
     :param overwrite: overwrite target file?
     """
-    
-    hadoop = sc._jvm.org.apache.hadoop
-    conf = hadoop.conf.Configuration()
-    fs = hadoop.fs.FileSystem.get(conf)
 
     out_stream = fs.create(hadoop.fs.Path(dst_file), overwrite)
     
@@ -148,11 +159,11 @@ def writeString (dst_file, content, overwrite=True):
         out_stream.close()
 
 
-def dataframeToTextFile (dataframe, dst_file, overwrite=False,
+def dataframeToHDFSfile (dataframe, dst_file, overwrite=False,
                             header='true', delimiter=',', quoteMode='MINIMAL'):
 
     """
-    dataframeToTextFile() saves a dataframe as a delimited file. 
+    dataframeToHDFSfile() saves a dataframe as a delimited file.
     It is faster than using dataframe.coalesce(1).write.option('header', 'true').csv(dst_file)
     as it doesn't require dataframe to be repartitioned/coalesced before writing.
     dataframeToTextFile() uses copyMerge() with HDFS API to merge files. 
@@ -182,8 +193,8 @@ def dataframeToTextFile (dataframe, dst_file, overwrite=False,
         header_record = delimiter.join(dataframe.columns)
         header_filename = "{}/__00_header.csv".format(dst_dir)  # have to make sure header filename is 1st in
                                                                 # alphabetical order
-        writeString(header_filename, header_record)
-        
-    copyMerge(dst_dir, dst_file, overwrite, deleteSource=True)
-    
+        HDFSwriteString(header_filename, header_record)
+
+    HDFScopyMerge(dst_dir, dst_file, overwrite, deleteSource=True)
+
 
