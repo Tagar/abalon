@@ -5,7 +5,7 @@
 spark = None
 debug = False
 
-def pyspark_init (i_spark, i_debug):
+def pyspark_init (i_spark, i_debug=False):
     '''
     Initialize module-level variables
 
@@ -131,7 +131,7 @@ def writeString (dst_file, content, overwrite=True):
     """
     Creates an HDFS file with given content
         
-    :param dst_file: destination file to merge file to
+    :param dst_file: destination HDFS file to write to
     :param content: string to be written to the file
     :param overwrite: overwrite target file?
     """
