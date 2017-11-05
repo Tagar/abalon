@@ -186,7 +186,8 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False,
 
     (dataframe
         .write
-        .option('header', header)
+        .option('header', False)    # always save without header as if there are multiple partitions,
+                                    # each datafile will have a header - not good.
         .option('delimiter', delimiter)
         .option('quoteMode', quoteMode)
         .mode('overwrite')     # temp directory will always be overwritten
