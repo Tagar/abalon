@@ -145,7 +145,7 @@ def HDFScopyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
         debug_print("Source directory {} removed.".format(src_dir))
 
 
-def HDFSwriteString (dst_file, content, overwrite=True):
+def HDFSwriteString (dst_file, content, overwrite=True, appendEOL=True):
     
     """
     Creates an HDFS file with given content.
@@ -154,10 +154,14 @@ def HDFSwriteString (dst_file, content, overwrite=True):
     :param dst_file: destination HDFS file to write to
     :param content: string to be written to the file
     :param overwrite: overwrite target file?
+    :param appendEOL: append new line character?
     """
 
     out_stream = fs.create(hadoop.fs.Path(dst_file), overwrite)
-    
+
+    if appendEOL:
+        content += "\n"
+
     try:
         out_stream.write(bytearray(content))
     finally:
@@ -196,8 +200,8 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False,
 
     if header:
         # we will create a separate file with just a header record
-        header_record = delimiter.join(dataframe.columns) + '\n'
-        header_filename = "{}/__00_header.csv".format(dst_dir)  # have to make sure header filename is 1st in
+        header_record = delimiter.join(dataframe.columns)
+        header_filename = "{}/--00_header.csv".format(dst_dir)  # have to make sure header filename is 1st in
                                                                 # alphabetical order
         HDFSwriteString(header_filename, header_record)
 
