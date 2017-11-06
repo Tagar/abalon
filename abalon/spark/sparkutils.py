@@ -196,7 +196,7 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False,
 
     if header:
         # we will create a separate file with just a header record
-        header_record = delimiter.join(dataframe.columns)
+        header_record = delimiter.join(dataframe.columns) + '\n'
         header_filename = "{}/__00_header.csv".format(dst_dir)  # have to make sure header filename is 1st in
                                                                 # alphabetical order
         HDFSwriteString(header_filename, header_record)
