@@ -16,6 +16,7 @@
 from setuptools import setup, find_packages
 
 import imp
+import os
 
 version = imp.load_source(
     'airflow.version', os.path.join('abalon', 'version.py')).version
