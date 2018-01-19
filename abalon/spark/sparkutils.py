@@ -23,6 +23,8 @@ debug = False
 (hadoop, conf, fs) = (None, None, None)     # see desciption below in sparkutils_init()
 
 
+import __main__ as main_ns                  # import main namespace
+
 ###########################################################################################################
 
 
@@ -60,55 +62,143 @@ def sparkutils_init (i_spark, i_debug=False):
 ###########################################################################################################
 
 
-def file_to_df (df_name, file_path, header=True, delimiter='|', inferSchema=True, cache=False):
+from pyspark.sql.types import LongType, StructField, StructType
 
-    """
-        Reads in a delimited file and sets up a Spark dataframe 
-        
+###
+def dfZipWithIndex(df, offset=1, colName="rowId"):
+    '''
+        Enumerates dataframe rows is native order, like rdd.ZipWithIndex(), but on a dataframe
+        and preserves a schema
+
+        :param df: source dataframe
+        :param offset: adjustment to zipWithIndex()'s index
+        :param colName: name of the index column
+    '''
+
+    new_schema = StructType(
+        [StructField(colName, LongType(), True)]  # new added field in front
+        + df.schema.fields  # previous schema
+    )
+
+    zipped_rdd = df.rdd.zipWithIndex()
+
+    new_rdd = zipped_rdd.map(lambda (row, rowId): ([rowId + offset] + list(row)))
+
+    return spark.createDataFrame(new_rdd, new_schema)
+
+###
+def file_to_df(df_name, file_path, header=True, delimiter='|', inferSchema=True, columns=None
+               , cache=False, zipWithIndex=None, partitions=None, cluster_by=None
+               , quote='"', escape='\\'
+               ):
+    '''
+        Reads in a delimited file and sets up a Spark dataframe
+
         :param df_name: registers this dataframe as a tempTable/view for SQL access;
                           important: it also registers a global variable under that name
-        :param file_path: path to a file; local files have to have 'file://' prefix; for HDFS files prefix is 'hdfs://' (optional, as hdfs is default)
-        :param header: boolean - file has a header record? 
+        :param path: path to a file; local files have to have 'file://' prefix;
+                     for HDFS files prefix is 'hdfs://' (optional, as hdfs is default)
+        :param header: boolean - file has a header record?
         :param inferSchema: boolean - infer data types from data? (requires one extra pass over data)
+        :param columns: list - optional list of column names (column names can also be taken from header record)
         :param delimiter: one character
-        :param cache: cache this dataframe?
-    """
+        :param cache: boolean - cache this dataframe?
+        :param zipWithIndex: new column name to be assigned by zipWithIndex()
+        :param partitions: number - if specified, will repartition to that number
+        :param cluster_by: string - list of columns (comma separated) to run CLUSTER BY on
+        :param quote: character - by default the quote character is ", but can be set to any character.
+                      Delimiters inside quotes are ignored; set to '\0' to disable quoting
+        :param escape: character - by default the escape character is \, but can be set to any character.
+                      Escaped quote characters are ignored
+    '''
 
-    df = ( spark.read.format('csv')
-              .option('header', header)
-              .option('delimiter', delimiter)
-              .option('inferSchema', inferSchema)
-              .load(file_path)
-        )
+    df = (sqlc.read.format('csv')
+          .option('header', header)
+          .option('delimiter', delimiter)
+          .option('inferSchema', inferSchema)
+          .option('quote', quote)
+          .option('escape', escape)
+          .load(file_path)
+          )
+
+    if columns:
+        df = df.toDF(*columns)
+
+    if zipWithIndex:
+        # zipWithIndex has to happen before repartition()
+        df = dfZipWithIndex(df, colName=zipWithIndex)
+
+    if partitions:
+        df = df.repartition(partitions)
+
+    if cluster_by:
+        before_cluster_by = df_name + '_before_cluster_by'
+        df.registerTempTable(before_cluster_by)
+        df = sqlc.sql("SELECT * FROM " + before_cluster_by + " CLUSTER BY " + cluster_by)
+        spark.catalog.dropTempView(before_cluster_by)
 
     if cache:
         df = df.cache()
 
-    df.createOrReplaceTempView(df_name)
-    globals()[df_name] = df
+    df.registerTempTable(df_name)
+    main_ns.globals()[df_name] = df
 
+    return df
 
-def sql_to_df (df_name, sql, cache=False):
+###
+def sql_to_df(df_name, sql, cache=False, partitions=None):
+    '''
+        Runs an sql query and sets up a Spark dataframe
 
-    """
-        Runs an sql query and sets up a Spark dataframe 
-        
         :param df_name: registers this dataframe as a tempTable/view for SQL access;
                           important: it also registers a global variable under that name
         :param sql: Spark SQL query to runs
+        :param partitions: number - if specified, will repartition to that number
         :param cache: cache this dataframe?
-    """
+    '''
 
-    df = spark.sql(sql)
+    df = sqlc.sql(sql)
+
+    if partitions:
+        df = df.repartition(partitions)
 
     if cache:
         df = df.cache()
 
-    df.createOrReplaceTempView(df_name)
-    globals()[df_name] = df
+    df.registerTempTable(df_name)
+    main_ns.globals()[df_name] = df
+
+    return df
+
 
 ###########################################################################################################
+## below three are no implemented yet
 
+def HDFSfileExists (file_path):
+    '''
+    Returns True if HDFS file exists
+
+    :param file_path: file patch
+    :return: boolean
+    '''
+    return True
+
+def dropHDFSfile (file_path):
+    '''
+    Drop HDFS file
+
+    :param file_path: HDFS file patch
+    '''
+
+def renameHDFSfile (src_name, dst_name):
+    '''
+    Renames src file to dst file name
+
+    :param src_name: source name
+    :param dst_name: target name
+    '''
+
+###########################################################################################################
 
 def HDFScopyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
     
@@ -122,7 +212,7 @@ def HDFScopyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
     :param overwrite: overwrite destination file if already exists? 
     :param deleteSource: drop source directory after merge is complete
     """
-    
+
     def debug_print (message):
         if debug:
             print("HDFScopyMerge(): " + message)
@@ -137,13 +227,19 @@ def HDFScopyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
     # determine order of files in which they will be written:
     files.sort(key=lambda f: str(f))
 
+    if not overwrite and HDFSfileExists(dst_file):
+        dropHDFSfile(dst_file)
+
+    # use temp file for the duration of the merge operation
+    dst_file_tmp = "{}.IN_PROGRESS.tmp".format(dst_file)
+
     # dst_permission = hadoop.fs.permission.FsPermission.valueOf(permission)      # , permission='-rw-r-----'
-    out_stream = fs.create(hadoop.fs.Path(dst_file), overwrite)
+    out_stream = fs.create(hadoop.fs.Path(dst_file_tmp), overwrite)
 
     try:
         # loop over files in alphabetical order and append them one by one to the target file
         for filename in files:
-            debug_print("Appending file {} into {}".format(filename, dst_file))
+            debug_print("Appending file {} into {}".format(filename, dst_file_tmp))
 
             in_stream = fs.open(filename)   # InputStream object
             try:
@@ -156,6 +252,13 @@ def HDFScopyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
     if deleteSource:
         fs.delete(hadoop.fs.Path(src_dir), True)    # True=recursive
         debug_print("Source directory {} removed.".format(src_dir))
+
+    try:
+        renameHDFSfile(dst_file_tmp, dst_file)
+        debug_print("Temp file renamed to {}".format(dst_file))
+    except:
+        dropHDFSfile(dst_file_tmp)  # drop temp file if we can't rename it to target name
+        raise
 
 
 def HDFSwriteString (dst_file, content, overwrite=True, appendEOL=True):
@@ -181,8 +284,11 @@ def HDFSwriteString (dst_file, content, overwrite=True, appendEOL=True):
         out_stream.close()
 
 
-def dataframeToHDFSfile (dataframe, dst_file, overwrite=False,
-                            header='true', delimiter=',', quoteMode='MINIMAL'):
+def dataframeToHDFSfile (dataframe, dst_file, overwrite=False
+                         , header='true', delimiter=','
+                         , quoteMode='MINIMAL'
+                         , quote='"', escape='\\'
+                         ):
 
     """
     dataframeToHDFSfile() saves a dataframe as a delimited file.
@@ -195,9 +301,16 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False,
     :param overwrite: overwrite destination file if already exists? 
     :param header: produce header record? Note: the the header record isn't written by Spark,
                but by this function instead to workaround having header records in each part file.
-    :param delimiter: delimiter character 
-    :param quoteMode: https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/QuoteMode.html 
+    :param delimiter: delimiter character
+    :param quote: character - by default the quote character is ", but can be set to any character.
+                  Delimiters inside quotes are ignored; set to '\0' to disable quoting
+    :param escape: character - by default the escape character is \, but can be set to any character.
+                  Escaped quote characters are ignored
+    :param quoteMode: https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/QuoteMode.html
     """
+
+    if not overwrite and HDFSfileExists(dst_file):
+        raise ValueError("Target file {} already exists and Overwrite is not requested".format(dst_file))
 
     dst_dir = dst_file + '.tmpdir'
 
@@ -207,6 +320,8 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False,
                                     # each datafile will have a header - not good.
         .option('delimiter', delimiter)
         .option('quoteMode', quoteMode)
+        .option('quote', quote)
+        .option('escape', escape)
         .mode('overwrite')     # temp directory will always be overwritten
         .csv(dst_dir)
         )
