@@ -48,7 +48,7 @@ def sparkutils_init (i_spark=None, i_debug=False):
     else:
         # get spark session 'spark' variable from main namespace instead
         try:
-            exec('spark = main_ns.' + spark_var_name)
+            exec('spark = main_ns.' + spark_var_name, globals())
         except AttributeError:
             print("Variable '{}' not found in main namespace".format(spark_var_name))
             raise
