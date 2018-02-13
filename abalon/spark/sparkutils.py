@@ -28,6 +28,7 @@ import __main__ as main_ns                  # import main namespace
 ###########################################################################################################
 
 sparkutils_init_complete = False
+spark_var_name = 'spark'
 
 def sparkutils_init (i_spark=None, i_debug=False):
     '''
@@ -45,8 +46,12 @@ def sparkutils_init (i_spark=None, i_debug=False):
     if i_spark:
         spark = i_spark
     else:
-        assert 'spark' in main_ns, "'spark' variable doesn't exist in global namespace"
-        spark = main_ns['spark']
+        # assert 'spark' in main_ns, "'spark' variable doesn't exist in global namespace"
+        try:
+            exec('spark = main_ns.' + spark_var_name)
+        except AttributeError:
+            print("Variable '{}' not found in main namespace".format(spark_var_name))
+            raise
 
     debug = i_debug
 
@@ -213,7 +218,7 @@ def file_to_df(df_name, file_path, delimiter='|', quote='"', escape='\\'
         df = df.cache()
 
     df.registerTempTable(df_name)
-    main_ns[df_name] = df
+    exec('main_ns.{} = df'.format(df_name))
 
     return df
 
@@ -249,7 +254,7 @@ def sql_to_df(df_name, sql, cache=False, partitions=None, partition_by=None, sor
         df = df.cache()
 
     df.registerTempTable(df_name)
-    main_ns[df_name] = df
+    exec('main_ns.{} = df'.format(df_name))
 
     return df
 
