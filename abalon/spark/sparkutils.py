@@ -45,8 +45,8 @@ def sparkutils_init (i_spark=None, i_debug=False):
     if i_spark:
         spark = i_spark
     else:
-        assert 'spark' in main_ns.globals(), "'spark' variable doesn't exist in global namespace"
-        spark = main_ns.globals()['spark']
+        assert 'spark' in main_ns, "'spark' variable doesn't exist in global namespace"
+        spark = main_ns['spark']
 
     debug = i_debug
 
@@ -213,7 +213,7 @@ def file_to_df(df_name, file_path, delimiter='|', quote='"', escape='\\'
         df = df.cache()
 
     df.registerTempTable(df_name)
-    main_ns.globals()[df_name] = df
+    main_ns[df_name] = df
 
     return df
 
@@ -249,7 +249,7 @@ def sql_to_df(df_name, sql, cache=False, partitions=None, partition_by=None, sor
         df = df.cache()
 
     df.registerTempTable(df_name)
-    main_ns.globals()[df_name] = df
+    main_ns[df_name] = df
 
     return df
 
