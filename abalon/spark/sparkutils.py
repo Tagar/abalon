@@ -46,7 +46,7 @@ def sparkutils_init (i_spark=None, i_debug=False):
     if i_spark:
         spark = i_spark
     else:
-        # assert 'spark' in main_ns, "'spark' variable doesn't exist in global namespace"
+        # get spark session 'spark' variable from main namespace instead
         try:
             exec('spark = main_ns.' + spark_var_name)
         except AttributeError:
@@ -57,7 +57,7 @@ def sparkutils_init (i_spark=None, i_debug=False):
 
     from pyspark.sql.session import SparkSession
     if not isinstance(spark, SparkSession):
-        raise TypeError("'spark' variable should be of type SparkSession")
+        raise TypeError("'spark' variable should be of type SparkSession, got "+str(type(test_var)))
 
     global sc
     global hadoop, conf, fs
