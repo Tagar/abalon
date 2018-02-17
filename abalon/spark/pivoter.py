@@ -73,9 +73,9 @@ class BasicSparkPivoter:
         x.update(y)  # modifies x with y's keys and values & returns None
         return x
 
-    def map_dict_to_denseArray(idx, d):
+    def map_dict_to_denseArray (idx, d):
         yield idx
-        for var in all_vars:
+        for var in self.all_vars:
             if var in d:
                 yield float(d[var])  # assuming all variables can be cast to float/double
             else:
@@ -87,15 +87,17 @@ class BasicSparkPivoter:
             # get list of variables from the dataset:
             all_vars = sorted([row[0] for row in df.rdd.map(lambda (idx, k, v): k).distinct().collect()])
 
+        self.all_vars = all_vars
+
         pivoted_rdd = (df.rdd
                .map(lambda (idx, k, v): (idx, {k: v}))  # convert k,v to a 1-element dict
                .reduceByKey(self.merge_two_dicts)  # merge into a single dict for all vars for this idx
                .map(lambda (idx, d): list(self.map_dict_to_denseArray(idx, d)))
-               # create final rdd with dense array of all variables
+                                                # create final rdd with dense array of all variables
         )
 
         fields = [StructField(idx_col, StringType(), False)]
-        fields += [StructField(field_name, DoubleType(), True) for field_name in all_vars]
+        fields += [StructField(field_name, DoubleType(), True) for field_name in self.all_vars]
         schema = StructType(fields)
 
         pivoted_df = spark.createDataFrame(pivoted_rdd, schema)
@@ -121,6 +123,7 @@ class AggSparkPivoter (BasicSparkPivoter):
         :param all_vars: list of all distinct values of `colname` column;
                 the only reason it's passed to this function is so you can redefine order of pivoted columns;
                 if not specified, datset will be scanned for all possible colnames
+        :param agg_op: aggregation operation/function, defaults to `add`
         :return: resulting dataframe
         '''
 
