@@ -57,7 +57,7 @@ def sparkutils_init (i_spark=None, i_debug=False):
 
     from pyspark.sql.session import SparkSession
     if not isinstance(spark, SparkSession):
-        raise TypeError("'spark' variable should be of type SparkSession, got "+str(type(spark)))
+        raise TypeError("'{}' variable should be of type SparkSession, got {}".format(spark_var_name, type(spark)))
 
     global sc
     global hadoop, conf, fs
