@@ -46,12 +46,12 @@
 
 ###########################################################################################################
 
+from pyspark.sql.types import *
+
+
 class BasicSparkPivoter:
 
-    def __init__(self):
-        pass
-
-    def __new__ (df, idx_col, all_vars=None):
+    def __new__ (cls, df, idx_col=None, all_vars=None):
         '''
         Pivots a dataframe without aggregation.
 
@@ -60,12 +60,14 @@ class BasicSparkPivoter:
             (there is no aggregation happens for value - use AggSparkPivoter instead if this is needed)
 
         :param df: dataframe to pivot (see expected schema of the df above)
-        :param idx_col: name of the index column
+        :param idx_col: name of the index column; if not specified, will be taked from df
         :param all_vars: list of all distinct values of `colname` column;
                 the only reason it's passed to this function is so you can redefine order of pivoted columns;
                 if not specified, datset will be scanned for all possible colnames
         :return: resulting dataframe
         '''
+
+        self = super(BasicSparkPivoter, cls).__new__(cls)
 
         return self.pivot_df(df, idx_col, all_vars)
 
@@ -86,8 +88,10 @@ class BasicSparkPivoter:
         if not all_vars:
             # get list of variables from the dataset:
             all_vars = sorted([row[0] for row in df.rdd.map(lambda (idx, k, v): k).distinct().collect()])
-
         self.all_vars = all_vars
+
+        if not idx_col:
+            idx_col = df.columns[1]     # take 2nd column name
 
         pivoted_rdd = (df.rdd
                .map(lambda (idx, k, v): (idx, {k: v}))  # convert k,v to a 1-element dict
@@ -96,8 +100,9 @@ class BasicSparkPivoter:
                                                 # create final rdd with dense array of all variables
         )
 
-        fields = [StructField(idx_col, StringType(), False)]
+        fields =  [StructField(idx_col,    StringType(), False)]
         fields += [StructField(field_name, DoubleType(), True) for field_name in self.all_vars]
+
         schema = StructType(fields)
 
         pivoted_df = spark.createDataFrame(pivoted_rdd, schema)
@@ -110,22 +115,20 @@ import operator
 
 class AggSparkPivoter (BasicSparkPivoter):
 
-    def __init__(self):
-        BasicSparkPivoter.__init__(self)
-        pass
-
-    def __new__ (df, idx_col, all_vars=None, agg_op=operator.add):
+    def __new__ (df, idx_col=None, all_vars=None, agg_op=operator.add):
         '''
         Pivots a dataframe without aggregation.
 
         :param df: dataframe to pivot (see expected schema of the df above)
-        :param idx_col: name of the index column
+        :param idx_col: name of the index column; if not specified, will be taked from df
         :param all_vars: list of all distinct values of `colname` column;
                 the only reason it's passed to this function is so you can redefine order of pivoted columns;
                 if not specified, datset will be scanned for all possible colnames
         :param agg_op: aggregation operation/function, defaults to `add`
         :return: resulting dataframe
         '''
+
+        self = super(AggSparkPivoter, cls).__new__(cls)
 
         self.agg_op = agg_op
 
