@@ -89,8 +89,9 @@ def AggSparkPivoter (df, all_vars=None, agg_op=operator.add):
     '''
 
     def agg_merge_two_dicts(x, y, agg_op):
-        return {k: agg_op(x.get(k, 0.0),
-                          y.get(k, 0.0))
+        return {k: agg_op(float(x.get(k, 0)),
+                          float(y.get(k, 0))
+                         )
                 for k in set(x).union(y)
                 }
 
@@ -111,12 +112,12 @@ def pivot_df (df, merger_func, all_vars=None, agg_op=None):
 
     spark = get_spark()
 
-    # assuming 2nd column is index column
-    idx_col = df.columns[1]
+    # assuming particular order of columns
+    (idx_col, key_col) = df.columns[0:1]
 
     if not all_vars:
         # get list of variables from the dataset:
-        all_vars = sorted([row[0] for row in df.select(idx_col).distinct().collect()])
+        all_vars = sorted([row[0] for row in df.select(key_col).distinct().collect()])
 
     pivoted_rdd = (df.rdd
         .map(lambda (idx, k, v): (idx, {k: v}))  # convert k,v to a 1-element dict
