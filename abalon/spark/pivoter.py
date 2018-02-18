@@ -48,98 +48,89 @@
 
 from abalon.spark.sparkutils import get_spark
 from pyspark.sql.types import *
+import operator
+
+###########################################################################################################
 
 
-class BasicSparkPivoter (object):
+def simple_merge_two_dicts (x, y, agg_op):
+    x.update(y)  # modifies x with y's keys and values & returns None
+    return x
 
-    def __new__ (cls, df, idx_col=None, all_vars=None):
-        '''
-        Pivots a dataframe without aggregation.
+def BasicSparkPivoter (df, all_vars=None):
 
-        Limitations:
-        - {index, colname} is a unique/ "PK" for this dataset
-            (there is no aggregation happens for value - use AggSparkPivoter instead if this is needed)
+    '''
+    Pivots a dataframe without aggregation.
 
-        :param df: dataframe to pivot (see expected schema of the df above)
-        :param idx_col: name of the index column; if not specified, will be taked from df
-        :param all_vars: list of all distinct values of `colname` column;
-                the only reason it's passed to this function is so you can redefine order of pivoted columns;
-                if not specified, datset will be scanned for all possible colnames
-        :return: resulting dataframe
-        '''
+    Limitations:
+    - {index, colname} is a unique/ "PK" for this dataset
+        (there is no aggregation happens for value - use AggSparkPivoter instead if this is needed)
 
-        self = super(BasicSparkPivoter, cls).__new__(cls)
+    :param df: dataframe to pivot (see expected schema of the df above)
+    :param all_vars: list of all distinct values of `colname` column;
+            if not specified, datset will be scanned for all possible colnames;
+            the only reason it's passed to this function is so you can redefine order of pivoted columns;
+    :return: resulting dataframe
+    '''
 
-        return self.pivot_df(df, idx_col, all_vars)
+    return pivot_df(df, simple_merge_two_dicts, all_vars)
 
-    def merge_two_dicts(self, x, y):
-        x.update(y)  # modifies x with y's keys and values & returns None
-        return x
 
-    def map_dict_to_denseArray (self, idx, d):
+def agg_merge_two_dicts(x, y, agg_op):
+    return {k: agg_op(x.get(k, 0.0),
+                      y.get(k, 0.0))
+                for k in set(x).union(y)
+           }
+
+def AggSparkPivoter (df, all_vars=None, agg_op=operator.add):
+
+    '''
+    Pivots a dataframe with aggregation.
+
+    :param df: dataframe to pivot (see expected schema of the df above)
+    :param all_vars: list of all distinct values of `colname` column;
+            if not specified, datset will be scanned for all possible colnames;
+            the only reason it's passed to this function is so you can redefine order of pivoted columns;
+    :return: resulting dataframe
+    '''
+
+    return pivot_df(df, agg_merge_two_dicts, all_vars, agg_op)
+
+
+###########################################################################################################
+
+def pivot_df (df, merger_func, all_vars=None, agg_op=None):
+
+    def map_dict_to_denseArray(idx, d):
         yield idx
-        for var in self.all_vars:
+        for var in all_vars:
             if var in d:
                 yield float(d[var])  # assuming all variables can be cast to float/double
             else:
                 yield None  # this is what makes array 'dense'.. even non-existent vars are represented with nulls
 
-    def pivot_df (self, df, idx_col, all_vars):
+    spark = get_spark()
 
-        spark = get_spark()
+    # assuming 2nd column is index column
+    idx_col = df.columns[1]
 
-        if not all_vars:
-            # get list of variables from the dataset:
-            all_vars = sorted([row[0] for row in df.rdd.map(lambda (idx, k, v): k).distinct().collect()])
-        self.all_vars = all_vars
+    if not all_vars:
+        # get list of variables from the dataset:
+        all_vars = sorted([row[0] for row in df.select(idx_col).distinct().collect()])
 
-        if not idx_col:
-            idx_col = df.columns[1]     # take 2nd column name
+    pivoted_rdd = (df.rdd
+        .map(lambda (idx, k, v): (idx, {k: v}))  # convert k,v to a 1-element dict
+        .reduceByKey(lambda x,y: merger_func(x, y, agg_op))  # merge into a single dict for all vars for this idx
+        .map(lambda (idx, d): list(map_dict_to_denseArray(idx, d)))
+                                        # create final rdd with dense array of all variables
+    )
 
-        pivoted_rdd = (df.rdd
-               .map(lambda (idx, k, v): (idx, {k: v}))  # convert k,v to a 1-element dict
-               .reduceByKey(self.merge_two_dicts)  # merge into a single dict for all vars for this idx
-               .map(lambda (idx, d): list(self.map_dict_to_denseArray(idx, d)))
-                                                # create final rdd with dense array of all variables
-        )
+    fields =  [StructField(idx_col,    StringType(), False)]
+    fields += [StructField(field_name, DoubleType(), True) for field_name in all_vars]
 
-        fields =  [StructField(idx_col,    StringType(), False)]
-        fields += [StructField(field_name, DoubleType(), True) for field_name in self.all_vars]
+    schema = StructType(fields)
 
-        schema = StructType(fields)
+    pivoted_df = spark.createDataFrame(pivoted_rdd, schema)
+    return pivoted_df
 
-        pivoted_df = spark.createDataFrame(pivoted_rdd, schema)
-        return pivoted_df
-
-
-###########################################################################################################
-
-import operator
-
-class AggSparkPivoter (BasicSparkPivoter):
-
-    def __new__ (df, idx_col=None, all_vars=None, agg_op=operator.add):
-        '''
-        Pivots a dataframe without aggregation.
-
-        :param df: dataframe to pivot (see expected schema of the df above)
-        :param idx_col: name of the index column; if not specified, will be taked from df
-        :param all_vars: list of all distinct values of `colname` column;
-                the only reason it's passed to this function is so you can redefine order of pivoted columns;
-                if not specified, datset will be scanned for all possible colnames
-        :param agg_op: aggregation operation/function, defaults to `add`
-        :return: resulting dataframe
-        '''
-
-        self = super(AggSparkPivoter, cls).__new__(cls)
-
-        self.agg_op = agg_op
-
-        return self.pivot_df(df, idx_col, all_vars)
-
-    def merge_two_dicts(self, x, y):
-        return {k: self.agg_op(x.get(k, 0.0),
-                               y.get(k, 0.0))
-                    for k in set(x).union(y)
-               }
 
