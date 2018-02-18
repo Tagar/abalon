@@ -49,7 +49,7 @@
 from pyspark.sql.types import *
 
 
-class BasicSparkPivoter:
+class BasicSparkPivoter (object):
 
     def __new__ (cls, df, idx_col=None, all_vars=None):
         '''
