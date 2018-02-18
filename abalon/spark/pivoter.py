@@ -46,6 +46,7 @@
 
 ###########################################################################################################
 
+from abalon.spark.sparkutils import get_spark
 from pyspark.sql.types import *
 
 
@@ -84,6 +85,8 @@ class BasicSparkPivoter (object):
                 yield None  # this is what makes array 'dense'.. even non-existent vars are represented with nulls
 
     def pivot_df (self, df, idx_col, all_vars):
+
+        spark = get_spark()
 
         if not all_vars:
             # get list of variables from the dataset:

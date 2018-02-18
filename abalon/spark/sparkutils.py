@@ -77,6 +77,12 @@ def sparkutils_init (i_spark=None, i_debug=False):
     sparkutils_init_complete = True
 
 
+def get_spark ():
+
+    sparkutils_init()
+    return spark
+
+
 ###########################################################################################################
 
 
