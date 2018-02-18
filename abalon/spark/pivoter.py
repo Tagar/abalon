@@ -53,10 +53,6 @@ import operator
 ###########################################################################################################
 
 
-def simple_merge_two_dicts (x, y, agg_op):
-    x.update(y)  # modifies x with y's keys and values & returns None
-    return x
-
 def BasicSparkPivoter (df, all_vars=None):
 
     '''
@@ -73,14 +69,12 @@ def BasicSparkPivoter (df, all_vars=None):
     :return: resulting dataframe
     '''
 
+    def simple_merge_two_dicts(x, y, agg_op):
+        x.update(y)  # modifies x with y's keys and values & returns None
+        return x
+
     return pivot_df(df, simple_merge_two_dicts, all_vars)
 
-
-def agg_merge_two_dicts(x, y, agg_op):
-    return {k: agg_op(x.get(k, 0.0),
-                      y.get(k, 0.0))
-                for k in set(x).union(y)
-           }
 
 def AggSparkPivoter (df, all_vars=None, agg_op=operator.add):
 
@@ -93,6 +87,12 @@ def AggSparkPivoter (df, all_vars=None, agg_op=operator.add):
             the only reason it's passed to this function is so you can redefine order of pivoted columns;
     :return: resulting dataframe
     '''
+
+    def agg_merge_two_dicts(x, y, agg_op):
+        return {k: agg_op(x.get(k, 0.0),
+                          y.get(k, 0.0))
+                for k in set(x).union(y)
+                }
 
     return pivot_df(df, agg_merge_two_dicts, all_vars, agg_op)
 
