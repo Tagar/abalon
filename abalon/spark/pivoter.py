@@ -70,8 +70,9 @@ def BasicSparkPivoter (df, all_vars=None):
     '''
 
     def simple_merge_two_dicts(x, y, agg_op):
-        x.update(y)  # modifies x with y's keys and values & returns None
-        return x
+        z = x.copy()
+        z.update(y)  # modifies x with y's keys and values & returns None
+        return z
 
     return pivot_df(df, simple_merge_two_dicts, all_vars)
 
