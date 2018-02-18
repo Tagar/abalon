@@ -71,11 +71,11 @@ class BasicSparkPivoter (object):
 
         return self.pivot_df(df, idx_col, all_vars)
 
-    def merge_two_dicts(x, y):
+    def merge_two_dicts(self, x, y):
         x.update(y)  # modifies x with y's keys and values & returns None
         return x
 
-    def map_dict_to_denseArray (idx, d):
+    def map_dict_to_denseArray (self, idx, d):
         yield idx
         for var in self.all_vars:
             if var in d:
@@ -83,7 +83,7 @@ class BasicSparkPivoter (object):
             else:
                 yield None  # this is what makes array 'dense'.. even non-existent vars are represented with nulls
 
-    def pivot_df (df, idx_col, all_vars):
+    def pivot_df (self, df, idx_col, all_vars):
 
         if not all_vars:
             # get list of variables from the dataset:
@@ -134,7 +134,7 @@ class AggSparkPivoter (BasicSparkPivoter):
 
         return self.pivot_df(df, idx_col, all_vars)
 
-    def merge_two_dicts(x, y):
+    def merge_two_dicts(self, x, y):
         return {k: self.agg_op(x.get(k, 0.0),
                                y.get(k, 0.0))
                     for k in set(x).union(y)
