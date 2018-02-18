@@ -113,7 +113,7 @@ def pivot_df (df, merger_func, all_vars=None, agg_op=None):
     spark = get_spark()
 
     # assuming particular order of columns
-    (idx_col, key_col) = df.columns[0:1]
+    (idx_col, key_col) = df.columns[0:2]
 
     if not all_vars:
         # get list of variables from the dataset:
