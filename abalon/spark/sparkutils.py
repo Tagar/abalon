@@ -311,6 +311,22 @@ def hdfs_rename (src_name, dst_name):
     return fs.rename(hadoop.fs.Path(src_name), hadoop.fs.Path(dst_name))
 
 
+def hdfs_file_size (file_path):
+    '''
+    Returns file size of an HDFS file exists
+
+    :param file_path: file patch
+    :return: file size
+    '''
+
+    sparkutils_init()
+
+    # See https://hadoop.apache.org/docs/r2.8.2/api/org/apache/hadoop/fs/ContentSummary.html
+    #   - getLength()
+    return fs.getContentSummary(hadoop.fs.Path(file_path)).getLength()
+
+
+
 ###########################################################################################################
 
 def HDFScopyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
@@ -403,7 +419,7 @@ def HDFSwriteString (dst_file, content, overwrite=True, appendEOL=True):
 
 
 def dataframeToHDFSfile (dataframe, dst_file, overwrite=False
-                         , header='true', delimiter=','
+                         , header=True, delimiter=','
                          , quoteMode='MINIMAL'
                          , quote='"', escape='\\'
                          ):

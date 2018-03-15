@@ -86,13 +86,14 @@ def AggSparkPivoter (df, all_vars=None, agg_op=operator.add):
     :param all_vars: list of all distinct values of `colname` column;
             if not specified, datset will be scanned for all possible colnames;
             the only reason it's passed to this function is so you can redefine order of pivoted columns;
+    :param agg_op: how to combine values when merging records for the same index (by default +)
     :return: resulting dataframe
     '''
 
     def agg_merge_two_dicts(x, y, agg_op):
-        z = {k: agg_op(float(x.get(k, 0)),
-                          float(y.get(k, 0))
-                         )
+        z = {k: agg_op( float(x.get(k, 0))
+                      , float(y.get(k, 0))
+                      )
                     for k in set(x).union(y)
                 }
         return z
