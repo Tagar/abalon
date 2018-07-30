@@ -422,6 +422,7 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False
                          , header=True, delimiter=','
                          , quoteMode='MINIMAL'
                          , quote='"', escape='\\'
+                         , compression='none'
                          ):
 
     """
@@ -441,6 +442,9 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False
     :param escape: character - by default the escape character is \, but can be set to any character.
                   Escaped quote characters are ignored
     :param quoteMode: https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/QuoteMode.html
+    :param compression: compression codec to use when saving to file. This can be one of the known case-insensitive
+                        shorten names (none, bzip2, gzip, lz4, snappy and deflate).
+
     """
 
     sparkutils_init()
@@ -458,6 +462,7 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False
         .option('quoteMode', quoteMode)
         .option('quote', quote)
         .option('escape', escape)
+        .option('compression', compression)
         .mode('overwrite')     # temp directory will always be overwritten
         .csv(dst_dir)
         )
