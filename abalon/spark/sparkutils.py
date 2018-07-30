@@ -393,7 +393,7 @@ def HDFScopyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
         raise
 
 
-def HDFSwriteString (dst_file, content, overwrite=True, appendEOL=True):
+def HDFSwriteString (dst_file, content, overwrite=True, appendEOL=True, compression='none'):
     
     """
     Creates an HDFS file with given content.
@@ -403,14 +403,22 @@ def HDFSwriteString (dst_file, content, overwrite=True, appendEOL=True):
     :param content: string to be written to the file
     :param overwrite: overwrite target file?
     :param appendEOL: append new line character?
+    :param compression: none, bzip2 or gzip
     """
 
     sparkutils_init()
 
-    out_stream = fs.create(hadoop.fs.Path(dst_file), overwrite)
-
     if appendEOL:
         content += "\n"
+
+    if compression=='gzip':
+        import zlib
+        content = zlib.compress(content)
+    elif compression=='bzip2':
+        import bz2
+        content = bz2.compress(content)
+
+    out_stream = fs.create(hadoop.fs.Path(dst_file), overwrite)
 
     try:
         out_stream.write(bytearray(content))
@@ -442,8 +450,8 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False
     :param escape: character - by default the escape character is \, but can be set to any character.
                   Escaped quote characters are ignored
     :param quoteMode: https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/QuoteMode.html
-    :param compression: compression codec to use when saving to file. This can be one of the known case-insensitive
-                        shorten names (none, bzip2, gzip, lz4, snappy and deflate).
+    :param compression: compression codec to use when saving to file. This can be one of the known
+                        shorten names (none, bzip2, gzip). lz4, snappy and deflate only supported with header=False
 
     """
 
@@ -453,6 +461,9 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False
         raise ValueError("Target file {} already exists and Overwrite is not requested".format(dst_file))
 
     dst_dir = dst_file + '.tmpdir'
+
+    if header and compression not in ['none', 'bzip2', 'gzip']:
+        raise ValueError("Header compression only supports 'gzip' and 'bzip2'")
 
     (dataframe
         .write
@@ -472,7 +483,7 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False
         header_record = delimiter.join(dataframe.columns)
         header_filename = "{}/--00_header.csv".format(dst_dir)  # have to make sure header filename is 1st in
                                                                 # alphabetical order
-        HDFSwriteString(header_filename, header_record)
+        HDFSwriteString(header_filename, header_record, compression)
 
     HDFScopyMerge(dst_dir, dst_file, overwrite, deleteSource=True)
 
