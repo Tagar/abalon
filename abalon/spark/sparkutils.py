@@ -483,7 +483,7 @@ def dataframeToHDFSfile (dataframe, dst_file, overwrite=False
         header_record = delimiter.join(dataframe.columns)
         header_filename = "{}/--00_header.csv".format(dst_dir)  # have to make sure header filename is 1st in
                                                                 # alphabetical order
-        HDFSwriteString(header_filename, header_record, compression)
+        HDFSwriteString(dst_file=header_filename, content=header_record, compression=compression)
 
     HDFScopyMerge(dst_dir, dst_file, overwrite, deleteSource=True)
 
