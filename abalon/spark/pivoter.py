@@ -125,10 +125,21 @@ def pivot_df (df, merger_func, all_vars=None, agg_op=None):
     # key becomes column names, so make it sql-complaint
     columns = [field_name.strip().replace('.','_') for field_name in all_vars]
 
+    '''
+    # Python 2: 
     pivoted_rdd = (df.rdd
         .map(lambda (idx, k, v): (idx, {k: v}))  # convert k,v to a 1-element dict
         .reduceByKey(lambda x,y: merger_func(x, y, agg_op))  # merge into a single dict for all vars for this idx
         .map(lambda (idx, d): list(map_dict_to_denseArray(idx, d)))
+                                        # create final rdd with dense array of all variables
+    )
+    '''
+
+    # Python 3:
+    pivoted_rdd = (df.rdd
+        .map(lambda r: (r[0], {r[1]: r[2]}))  # convert k,v to a 1-element dict
+        .reduceByKey(lambda x,y: merger_func(x, y, agg_op))  # merge into a single dict for all vars for this idx
+        .map(lambda i: list(map_dict_to_denseArray(i[0], i[1])))
                                         # create final rdd with dense array of all variables
     )
 

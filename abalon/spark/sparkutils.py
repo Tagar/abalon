@@ -120,7 +120,7 @@ def dfPartitionSampler(df, percent_sample=5):
 ###
 def dfZipWithIndex(df, offset=1, colName="rowId"):
     '''
-        Enumerates dataframe rows is native order, like rdd.ZipWithIndex(), but on a dataframe
+        Enumerates dataframe rows in native order, like rdd.ZipWithIndex(), but on a dataframe
         and preserves a schema
 
         :param df: source dataframe
@@ -137,7 +137,10 @@ def dfZipWithIndex(df, offset=1, colName="rowId"):
 
     zipped_rdd = df.rdd.zipWithIndex()
 
-    new_rdd = zipped_rdd.map(lambda (row, rowId): ([rowId + offset] + list(row)))
+    # py2:
+    # new_rdd = zipped_rdd.map(lambda (row, rowId): ([rowId + offset] + list(row)))
+
+    new_rdd = zipped_rdd.map(lambda rec: ([rec[1] + offset] + list(rec[1])))
 
     return spark.createDataFrame(new_rdd, new_schema)
 
