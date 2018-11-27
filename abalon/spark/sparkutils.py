@@ -426,7 +426,7 @@ def HDFSwriteString (dst_file, content, overwrite=True, appendEOL=True, compress
     out_stream = fs.create(hadoop.fs.Path(dst_file), overwrite)
 
     try:
-        out_stream.write(bytearray(content))
+        out_stream.write(bytearray(content, 'utf8'))
     finally:
         out_stream.close()
 
