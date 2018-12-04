@@ -417,16 +417,16 @@ def HDFSwriteString (dst_file, content, overwrite=True, appendEOL=True, compress
     if compression=='gzip':
         import zlib
         compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, 25)
-        content = compressor.compress(content) + compressor.flush()
+        content = compressor.compress(content.encode()) + compressor.flush()
     elif compression=='bzip2':
         import bz2
         compressor = bz2.BZ2Compressor()
-        content = compressor.compress(content) + compressor.flush()
+        content = compressor.compress(content.encode()) + compressor.flush()
 
     out_stream = fs.create(hadoop.fs.Path(dst_file), overwrite)
 
     try:
-        out_stream.write(bytearray(content, 'utf8'))
+        out_stream.write(bytearray(content))
     finally:
         out_stream.close()
 
