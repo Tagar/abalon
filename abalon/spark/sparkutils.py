@@ -339,7 +339,7 @@ def HDFScopyMerge (src_dir, dst_file, overwrite=False, deleteSource=False):
     File names are sorted in alphabetical order for merge order.
     Inspired by https://hadoop.apache.org/docs/r2.7.1/api/src-html/org/apache/hadoop/fs/FileUtil.html#line.382
 
-    :param src_dir: source directoy to get files from 
+    :param src_dir: source directory to get files from
     :param dst_file: destination file to merge file to
     :param overwrite: overwrite destination file if already exists? this would also overwrite temp file if exists
     :param deleteSource: drop source directory after merge is complete
@@ -414,14 +414,16 @@ def HDFSwriteString (dst_file, content, overwrite=True, appendEOL=True, compress
     if appendEOL:
         content += "\n"
 
+    content = content.encode()
+
     if compression=='gzip':
         import zlib
         compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, 25)
-        content = compressor.compress(content.encode()) + compressor.flush()
+        content = compressor.compress(content) + compressor.flush()
     elif compression=='bzip2':
         import bz2
         compressor = bz2.BZ2Compressor()
-        content = compressor.compress(content.encode()) + compressor.flush()
+        content = compressor.compress(content) + compressor.flush()
 
     out_stream = fs.create(hadoop.fs.Path(dst_file), overwrite)
 
